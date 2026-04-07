@@ -330,7 +330,6 @@
             appId: "1:792420257574:web:1ceb9c6847fb0b523b3be7"
         };
         
-        // Agar config dali hai to hi initialize kare
         if(Object.keys(firebaseConfig).length > 0) {
             firebase.initializeApp(firebaseConfig);
         } else {
@@ -363,12 +362,10 @@
         // ==========================================
         // AUTH & DATABASE LOGIC
         // ==========================================
-        
         if(auth) {
             auth.onAuthStateChanged(user => {
                 currentUser = user;
                 if(user) {
-                    // Fetch user data
                     db.collection('users').doc(user.uid).get().then(doc => {
                         if(doc.exists) {
                             const data = doc.data();
@@ -377,50 +374,76 @@
                             navDp.style.display = 'block';
                             navDp.src = data.dp || fallbackImg;
                             
-                            // Load profile UI
                             document.getElementById('profile-name').innerText = data.name;
                             document.getElementById('profile-email').innerText = data.email;
                             document.getElementById('profile-gender').innerText = data.gender;
                             document.getElementById('profile-dp').src = data.dp || fallbackImg;
 
-                            // Sync Likes and History
                             if(data.likes) { saveLikedSongs(data.likes); queues.liked = data.likes; }
                             if(data.history) { globalHistory = data.history; }
                             
-                            // Restore Last Played
-                            if(data.lastPlayed && audio.src === '') {
-                                restoreLastPlayedUI(data.lastPlayed);
-                            }
+                            if(data.lastPlayed && audio.src === '') restoreLastPlayedUI(data.lastPlayed);
                         }
                     });
                 } else {
                     document.getElementById('nav-default-dp').style.display = 'block';
                     document.getElementById('nav-dp').style.display = 'none';
-                    // Fallback to local
                     const lastLocal = localStorage.getItem('mid_last_song');
                     if(lastLocal && audio.src === '') restoreLastPlayedUI(JSON.parse(lastLocal));
                 }
             });
         } else {
-            // No firebase fallback
             const lastLocal = localStorage.getItem('mid_last_song');
             if(lastLocal) restoreLastPlayedUI(JSON.parse(lastLocal));
         }
 
+        // 🔥 FIX 1: UPDATE FULL PLAYER UI ON LOAD 🔥
         function restoreLastPlayedUI(song) {
             currentQueue = [song]; currentIndex = 0;
+            
+            // Update Mini Player
             document.getElementById('mini-title').innerText = song.name;
             document.getElementById('mini-artist').innerText = song.artist;
-            const imgEl = document.getElementById('mini-img');
-            imgEl.style.display = 'block'; imgEl.src = song.img;
+            const mImg = document.getElementById('mini-img');
+            mImg.style.display = 'block'; 
+            mImg.src = song.img || fallbackImg;
             document.getElementById('mini-placeholder').style.display = 'none';
+            
+            // Update Full Player
+            document.getElementById('full-title').innerText = song.name;
+            document.getElementById('full-artist').innerText = song.artist;
+            document.getElementById('full-img').src = song.img || fallbackImg;
+            
             audio.src = song.url;
+            checkLikedStatus(song);
         }
 
-        // AUTH MODAL LOGIC
+        // ==========================================
+        // 🔥 FIX 2: MOBILE HARDWARE BACK BUTTON LOGIC 🔥
+        // ==========================================
+        window.addEventListener('popstate', (e) => {
+            // Close all overlays if hardware back is pressed
+            document.getElementById('full-player').classList.remove('active');
+            document.getElementById('full-player').style.transform = '';
+            document.getElementById('auth-modal').style.display = 'none';
+            document.getElementById('playlist-view').style.display = 'none';
+            document.getElementById('history-view').style.display = 'none';
+
+            // If we went back to an overlay that was previously open
+            if(e.state && e.state.overlay) {
+                if(e.state.overlay === 'player') document.getElementById('full-player').classList.add('active');
+                else if(e.state.overlay === 'auth') document.getElementById('auth-modal').style.display = 'flex';
+                else if(e.state.overlay === 'playlist') document.getElementById('playlist-view').style.display = 'flex';
+                else if(e.state.overlay === 'history') document.getElementById('history-view').style.display = 'flex';
+            }
+        });
+
+        // AUTH MODAL LOGIC (Updated for Back Button)
         window.openAuthModal = () => {
             const modal = document.getElementById('auth-modal');
             modal.style.display = 'flex';
+            history.pushState({overlay: 'auth'}, null, '#auth'); // PUSH STATE
+            
             if(currentUser) {
                 document.getElementById('unauth-view').style.display = 'none';
                 document.getElementById('auth-logged-in').style.display = 'block';
@@ -429,7 +452,10 @@
                 document.getElementById('auth-logged-in').style.display = 'none';
             }
         };
-        window.closeAuthModal = () => { document.getElementById('auth-modal').style.display = 'none'; };
+        window.closeAuthModal = () => { 
+            document.getElementById('auth-modal').style.display = 'none'; 
+            if(location.hash === '#auth') history.back();
+        };
 
         window.toggleAuthMode = (mode) => {
             if(mode === 'login') {
@@ -492,7 +518,6 @@
         });
 
         window.logout = () => { auth.signOut(); closeAuthModal(); };
-        
         window.forgotPassword = () => {
             const email = document.getElementById('login-email').value;
             if(!email) return alert("Please enter your email in the login box first.");
@@ -509,14 +534,14 @@
             }
         };
 
-        // ==========================================
-        // HISTORY VIEW LOGIC
-        // ==========================================
+        // HISTORY VIEW LOGIC (Updated for Back Button)
         window.openHistoryView = () => {
-            closeAuthModal();
+            document.getElementById('auth-modal').style.display = 'none'; // direct hide to avoid popping history
             document.getElementById('history-view').style.display = 'flex';
+            history.pushState({overlay: 'history'}, null, '#history'); // PUSH STATE
+
             const hList = document.getElementById('history-list');
-            queues.history = [...globalHistory].reverse(); // Show latest first
+            queues.history = [...globalHistory].reverse();
             
             if(queues.history.length === 0) {
                 hList.innerHTML = `<p class="text-center text-on-surface-variant py-10">No listening history found.</p>`;
@@ -534,7 +559,10 @@
                 </div>
             `).join('');
         };
-        window.closeHistoryView = () => { document.getElementById('history-view').style.display = 'none'; };
+        window.closeHistoryView = () => { 
+            document.getElementById('history-view').style.display = 'none'; 
+            if(location.hash === '#history') history.back();
+        };
 
 
         // ==========================================
@@ -656,9 +684,12 @@
             }
         }
 
+        // PLAYLIST VIEW LOGIC (Updated for Back Button)
         async function openPlaylistView(title, query) {
             document.getElementById('playlist-title').innerText = title;
             playlistView.style.display = 'flex';
+            history.pushState({overlay: 'playlist'}, null, '#playlist'); // PUSH STATE
+            
             playlistList.innerHTML = `<p class="text-center text-primary animate-pulse py-10">Loading Playlist...</p>`;
             const songs = await fetchAPI(query, 30);
             if(songs.length > 0) {
@@ -675,9 +706,11 @@
                 `).join('');
             }
         }
-        window.closePlaylistView = () => { playlistView.style.display = 'none'; }
+        window.closePlaylistView = () => { 
+            playlistView.style.display = 'none'; 
+            if(location.hash === '#playlist') history.back();
+        }
 
-        // --- MODIFIED: LIKED SONGS FIREBASE SYNC ---
         function getLikedSongs() { return JSON.parse(localStorage.getItem('mid_liked')) || []; }
         function saveLikedSongs(songs) { 
             localStorage.setItem('mid_liked', JSON.stringify(songs)); 
@@ -690,6 +723,8 @@
             const liked = getLikedSongs();
             document.getElementById('playlist-title').innerText = "❤️ Your Liked Songs";
             playlistView.style.display = 'flex';
+            history.pushState({overlay: 'playlist'}, null, '#playlist'); // PUSH STATE
+            
             if(liked.length === 0) { playlistList.innerHTML = `<p class="text-center text-on-surface-variant py-10">No liked songs.</p>`; return; }
             queues.liked = liked; 
             playlistList.innerHTML = queues.liked.map((s, i) => `
@@ -781,7 +816,6 @@
             playNext();
         }
 
-        // --- MODIFIED: LOAD & PLAY FIREBASE SYNC ---
         window.loadAndPlay = (queueContext, index, fromUser = false) => {
             if (queueContext && queues[queueContext]) currentQueue = [...queues[queueContext]]; 
             currentIndex = index;
@@ -795,12 +829,12 @@
             document.getElementById('mini-title').innerText = document.getElementById('full-title').innerText = song.name;
             document.getElementById('mini-artist').innerText = document.getElementById('full-artist').innerText = song.artist;
             const mImg = document.getElementById('mini-img');
-            mImg.style.display = 'block'; mImg.src = document.getElementById('full-img').src = song.img || fallbackImg;
+            mImg.style.display = 'block'; 
+            mImg.src = document.getElementById('full-img').src = song.img || fallbackImg;
             document.getElementById('mini-placeholder').style.display = 'none';
 
             localStorage.setItem('mid_last_song', JSON.stringify(song));
 
-            // FIREBASE: Save History & Last Played
             if(currentUser && db && window.firebase) {
                 const uniqueHistory = globalHistory.filter(s => s.url !== song.url);
                 uniqueHistory.push(song);
@@ -860,8 +894,19 @@
 
         const playerEl = document.getElementById('full-player');
         const swipeArea = document.getElementById('player-swipe-area');
-        window.openFullPlayer = () => { if(audio.src && audio.src !== location.href) playerEl.classList.add('active'); };
-        window.closeFullPlayer = () => { playerEl.classList.remove('active'); playerEl.style.transform = ''; }
+        
+        // FULL PLAYER OPEN/CLOSE LOGIC (Updated for Back Button)
+        window.openFullPlayer = () => { 
+            if(audio.src && audio.src !== location.href) {
+                playerEl.classList.add('active'); 
+                history.pushState({overlay: 'player'}, null, '#player'); // PUSH STATE
+            }
+        };
+        window.closeFullPlayer = () => { 
+            playerEl.classList.remove('active'); 
+            playerEl.style.transform = ''; 
+            if(location.hash === '#player') history.back();
+        }
 
         let startY = 0, currentY = 0, isDragging = false;
         swipeArea.addEventListener('touchstart', e => { startY = e.touches[0].clientY; isDragging = true; playerEl.style.transition = 'none'; }, {passive: true});
