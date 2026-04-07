@@ -397,11 +397,9 @@
             if(lastLocal) restoreLastPlayedUI(JSON.parse(lastLocal));
         }
 
-        // 🔥 FIX 1: UPDATE FULL PLAYER UI ON LOAD 🔥
         function restoreLastPlayedUI(song) {
             currentQueue = [song]; currentIndex = 0;
             
-            // Update Mini Player
             document.getElementById('mini-title').innerText = song.name;
             document.getElementById('mini-artist').innerText = song.artist;
             const mImg = document.getElementById('mini-img');
@@ -409,7 +407,6 @@
             mImg.src = song.img || fallbackImg;
             document.getElementById('mini-placeholder').style.display = 'none';
             
-            // Update Full Player
             document.getElementById('full-title').innerText = song.name;
             document.getElementById('full-artist').innerText = song.artist;
             document.getElementById('full-img').src = song.img || fallbackImg;
@@ -419,17 +416,15 @@
         }
 
         // ==========================================
-        // 🔥 FIX 2: MOBILE HARDWARE BACK BUTTON LOGIC 🔥
+        // MOBILE HARDWARE BACK BUTTON LOGIC
         // ==========================================
         window.addEventListener('popstate', (e) => {
-            // Close all overlays if hardware back is pressed
             document.getElementById('full-player').classList.remove('active');
             document.getElementById('full-player').style.transform = '';
             document.getElementById('auth-modal').style.display = 'none';
             document.getElementById('playlist-view').style.display = 'none';
             document.getElementById('history-view').style.display = 'none';
 
-            // If we went back to an overlay that was previously open
             if(e.state && e.state.overlay) {
                 if(e.state.overlay === 'player') document.getElementById('full-player').classList.add('active');
                 else if(e.state.overlay === 'auth') document.getElementById('auth-modal').style.display = 'flex';
@@ -438,11 +433,10 @@
             }
         });
 
-        // AUTH MODAL LOGIC (Updated for Back Button)
         window.openAuthModal = () => {
             const modal = document.getElementById('auth-modal');
             modal.style.display = 'flex';
-            history.pushState({overlay: 'auth'}, null, '#auth'); // PUSH STATE
+            history.pushState({overlay: 'auth'}, null, '#auth'); 
             
             if(currentUser) {
                 document.getElementById('unauth-view').style.display = 'none';
@@ -534,11 +528,10 @@
             }
         };
 
-        // HISTORY VIEW LOGIC (Updated for Back Button)
         window.openHistoryView = () => {
-            document.getElementById('auth-modal').style.display = 'none'; // direct hide to avoid popping history
+            document.getElementById('auth-modal').style.display = 'none'; 
             document.getElementById('history-view').style.display = 'flex';
-            history.pushState({overlay: 'history'}, null, '#history'); // PUSH STATE
+            history.pushState({overlay: 'history'}, null, '#history'); 
 
             const hList = document.getElementById('history-list');
             queues.history = [...globalHistory].reverse();
@@ -566,7 +559,7 @@
 
 
         // ==========================================
-        // MODIFIED CORE FUNCTIONS
+        // API FETCH & DASHBOARD
         // ==========================================
         const categoryQueries = {
             'hindi': ['latest bollywood hits', 'top hindi romantic', '90s evergreen hindi', 'hindi party anthem', 'best of arijit singh', 'kumar sanu hits', 'retro hindi classics'],
@@ -605,6 +598,7 @@
             });
         }
 
+        // 🔥 FIX: ADDED LANGUAGE CAPTURE IN FETCH API 🔥
         async function fetchAPI(query, limit = 40) {
             let q = query.replace(/original/gi, '').trim();
             if(!q) return [];
@@ -628,7 +622,8 @@
                                 name: decode(s.name || s.title || 'Unknown'),
                                 artist: decode(s.artists?.primary?.[0]?.name || s.primaryArtists || 'Artist'),
                                 img: (img || fallbackImg).replace('http://', 'https://').replace('150x150', '500x500'),
-                                url: (mediaUrl || '').replace('http://', 'https://')
+                                url: (mediaUrl || '').replace('http://', 'https://'),
+                                language: (s.language || '').toLowerCase() // Extracted language from API
                             };
                         }).filter(s => s.url);
                         let uniqueSongs = []; let names = new Set();
@@ -684,11 +679,10 @@
             }
         }
 
-        // PLAYLIST VIEW LOGIC (Updated for Back Button)
         async function openPlaylistView(title, query) {
             document.getElementById('playlist-title').innerText = title;
             playlistView.style.display = 'flex';
-            history.pushState({overlay: 'playlist'}, null, '#playlist'); // PUSH STATE
+            history.pushState({overlay: 'playlist'}, null, '#playlist'); 
             
             playlistList.innerHTML = `<p class="text-center text-primary animate-pulse py-10">Loading Playlist...</p>`;
             const songs = await fetchAPI(query, 30);
@@ -723,7 +717,7 @@
             const liked = getLikedSongs();
             document.getElementById('playlist-title').innerText = "❤️ Your Liked Songs";
             playlistView.style.display = 'flex';
-            history.pushState({overlay: 'playlist'}, null, '#playlist'); // PUSH STATE
+            history.pushState({overlay: 'playlist'}, null, '#playlist'); 
             
             if(liked.length === 0) { playlistList.innerHTML = `<p class="text-center text-on-surface-variant py-10">No liked songs.</p>`; return; }
             queues.liked = liked; 
@@ -786,27 +780,71 @@
         }
         window.clearSearch = () => { document.getElementById('search-input').value = ''; handleLiveSearch(''); }
 
-        async function fetchSmartQueue(song) {
-            queueList.innerHTML = `<p class="text-xs text-primary animate-pulse">Analyzing vibe...</p>`;
-            let query = song.artist.split(',')[0].trim() + " hits"; 
-            if(song.name.toLowerCase().includes('lofi')) query = "lofi chill aesthetic";
-            const songs = await fetchAPI(query, 20);
+        // ==========================================
+        // 🔥 VIBE MATCH 3.0 & LANGUAGE DETECTION 🔥
+        // ==========================================
+        async function fetchSmartQueue(song, append = false) {
+            if(!append) queueList.innerHTML = `<p class="text-xs text-primary animate-pulse">Analyzing vibe...</p>`;
+
+            let artistLower = (song.artist || "").toLowerCase();
+            let nameLower = (song.name || "").toLowerCase();
+            
+            // SMART LANGUAGE DETECTION: Use API's detected language, else use active Dashboard Category
+            let lang = (song.language && song.language !== 'unknown') ? song.language : currentCategory;
+            
+            let query = song.artist.split(',')[0].trim() + " " + lang + " hits";
+
+            // SMART VIBE & LANGUAGE MATCH
+            if (nameLower.includes('lofi') || artistLower.includes('lofi')) {
+                query = `lofi chill aesthetic ${lang}`;
+            } else if (artistLower.includes('kishore') || artistLower.includes('rafi') || artistLower.includes('lata') || artistLower.includes('mukesh') || artistLower.includes('asha') || artistLower.includes('kalyanji') || artistLower.includes('rd burman') || artistLower.includes('mangeshkar') || artistLower.includes('hemant') || artistLower.includes('manna dey')) {
+                const retroQueries = [`old ${lang} retro songs`, `70s 80s ${lang} songs`, `${song.artist.split(',')[0].trim()} ${lang} hits`];
+                query = retroQueries[Math.floor(Math.random() * retroQueries.length)];
+            } else if (artistLower.includes('kumar sanu') || artistLower.includes('udit') || artistLower.includes('alka') || artistLower.includes('kavita') || artistLower.includes('bappi') || artistLower.includes('abhijeet') || artistLower.includes('anuradha')) {
+                const ninetiesQueries = [`90s evergreen ${lang} romantic`, `${song.artist.split(',')[0].trim()} ${lang} hits`, `90s ${lang} sad songs`];
+                query = ninetiesQueries[Math.floor(Math.random() * ninetiesQueries.length)];
+            } else if (artistLower.includes('arijit') || artistLower.includes('atif') || artistLower.includes('shreya') || artistLower.includes('darshan') || artistLower.includes('armaan') || artistLower.includes('zubeen') || artistLower.includes('anupam') || artistLower.includes('jeet gannguli') || artistLower.includes('jubin')) {
+                query = `latest ${lang} romantic hits`;
+            } else if (artistLower.includes('badshah') || artistLower.includes('honey singh') || artistLower.includes('neha kakkar') || artistLower.includes('diljit') || artistLower.includes('mika') || artistLower.includes('raftaar')) {
+                query = `${lang} party hits`;
+            }
+
+            let songs = await fetchAPI(query, 30);
+            
+            // FAIL-SAFE: If specific vibe runs out, just get the top hits of THAT LANGUAGE
+            if (songs.length === 0) {
+                songs = await fetchAPI(`top ${lang} songs`, 20);
+            }
+            
             if (songs.length > 0) {
-                upNextQueue = songs.filter(s => {
+                let newSongs = songs.filter(s => {
                     const baseCurr = song.name.toLowerCase().replace(/\[.*?\]|\(.*?\)/g, "").trim();
                     const baseS = s.name.toLowerCase().replace(/\[.*?\]|\(.*?\)/g, "").trim();
                     return baseCurr !== baseS;
                 });
-                if(upNextQueue.length > 0) {
-                    queueList.innerHTML = upNextQueue.slice(0, 8).map((sq, i) => `
-                        <div onclick="playFromUpNext(${i})" class="flex items-center gap-3 p-2 rounded-xl cursor-pointer hover:bg-white/5 transition">
-                            <img src="${sq.img}" onerror="this.onerror=null; this.src='${fallbackImg}'" class="w-12 h-12 rounded-lg object-cover shadow-md shrink-0"/>
-                            <div class="overflow-hidden">
-                                <h4 class="text-sm font-bold text-white truncate">${sq.name}</h4>
-                                <p class="text-xs text-on-surface-variant truncate">${sq.artist}</p>
-                            </div>
-                        </div>`).join('');
+                
+                if(append) {
+                    newSongs = newSongs.filter(ns => !upNextQueue.some(uq => uq.url === ns.url));
+                    upNextQueue.push(...newSongs);
+                } else {
+                    upNextQueue = newSongs;
                 }
+                renderUpNextUI();
+            }
+        }
+
+        function renderUpNextUI() {
+            if(upNextQueue.length > 0) {
+                queueList.innerHTML = upNextQueue.slice(0, 15).map((sq, i) => `
+                    <div onclick="playFromUpNext(${i})" class="flex items-center gap-3 p-2 rounded-xl cursor-pointer hover:bg-white/5 transition">
+                        <img src="${sq.img}" onerror="this.onerror=null; this.src='${fallbackImg}'" class="w-12 h-12 rounded-lg object-cover shadow-md shrink-0"/>
+                        <div class="overflow-hidden">
+                            <h4 class="text-sm font-bold text-white truncate">${sq.name}</h4>
+                            <p class="text-xs text-on-surface-variant truncate">${sq.artist}</p>
+                        </div>
+                    </div>`).join('');
+            } else {
+                queueList.innerHTML = `<p class="text-xs text-on-surface-variant animate-pulse">Fetching more vibes...</p>`;
             }
         }
 
@@ -853,17 +891,29 @@
             
             if(fromUser) {
                 localStorage.setItem('mid_last_artist', song.artist.split(',')[0]);
-                setTimeout(() => { fetchSmartQueue(song); }, 500);
+                setTimeout(() => { fetchSmartQueue(song, false); }, 500);
+            } else {
+                renderUpNextUI();
+                if(upNextQueue.length < 5) {
+                    setTimeout(() => { fetchSmartQueue(song, true); }, 500);
+                }
             }
+
             if(canvasOn) document.getElementById('canvas-video').play();
         };
 
         window.togglePlay = () => { if (!audio.src) return; isPlaying ? audio.pause() : audio.play(); }
+        
         window.playNext = () => {
-            if(upNextQueue.length > 0) { currentQueue.splice(currentIndex + 1, 0, upNextQueue.shift()); currentIndex++; } 
-            else { currentIndex = (currentIndex + 1) % currentQueue.length; }
+            if(upNextQueue.length > 0) { 
+                currentQueue.splice(currentIndex + 1, 0, upNextQueue.shift()); 
+                currentIndex++; 
+            } else { 
+                currentIndex = (currentIndex + 1) % currentQueue.length; 
+            }
             loadAndPlay(null, currentIndex, false);
         }
+
         window.playPrevious = () => { currentIndex = (currentIndex - 1 + currentQueue.length) % currentQueue.length; loadAndPlay(null, currentIndex, false); }
         function updatePlayIcons() { document.getElementById('mini-play-icon').innerText = isPlaying ? 'pause' : 'play_arrow'; document.getElementById('full-play-icon').innerText = isPlaying ? 'pause' : 'play_arrow'; }
 
@@ -895,11 +945,10 @@
         const playerEl = document.getElementById('full-player');
         const swipeArea = document.getElementById('player-swipe-area');
         
-        // FULL PLAYER OPEN/CLOSE LOGIC (Updated for Back Button)
         window.openFullPlayer = () => { 
             if(audio.src && audio.src !== location.href) {
                 playerEl.classList.add('active'); 
-                history.pushState({overlay: 'player'}, null, '#player'); // PUSH STATE
+                history.pushState({overlay: 'player'}, null, '#player'); 
             }
         };
         window.closeFullPlayer = () => { 
