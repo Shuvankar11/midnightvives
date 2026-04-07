@@ -351,8 +351,6 @@
         
         if(Object.keys(firebaseConfig).length > 0) {
             firebase.initializeApp(firebaseConfig);
-        } else {
-            console.warn("⚠️ Firebase config is missing.");
         }
 
         const auth = window.firebase ? firebase.auth() : null;
@@ -379,7 +377,7 @@
         let tempBase64Dp = "";
 
         // ==========================================
-        // 🔥 BASS BOOST SYSTEM (NEW) 🔥
+        // 🔥 BASS BOOST SYSTEM (FIXED) 🔥
         // ==========================================
         let audioCtx, bassFilter, sourceNode;
         let isBassBoosted = false;
@@ -393,7 +391,7 @@
                     
                     bassFilter = audioCtx.createBiquadFilter();
                     bassFilter.type = "lowshelf";
-                    bassFilter.frequency.value = 150; // Bass frequency target
+                    bassFilter.frequency.value = 80; // Changed to 80Hz for deep, clean punch (not muddy)
                     bassFilter.gain.value = 0;
 
                     sourceNode.connect(bassFilter);
@@ -405,7 +403,7 @@
                 }
 
                 isBassBoosted = !isBassBoosted;
-                bassFilter.gain.value = isBassBoosted ? 15 : 0; // Add 15dB heavy bass punch
+                bassFilter.gain.value = isBassBoosted ? 8 : 0; // Changed from 15 to 8 for clear, distortion-free bass
 
                 const btn = document.getElementById('bass-btn');
                 const icon = btn.querySelector('.material-symbols-outlined');
@@ -421,7 +419,6 @@
                 }
             } catch (e) {
                 console.log("Bass Boost Error:", e);
-                // Note: If Saavn server occasionally blocks CORS, this will catch it silently.
             }
         };
 
@@ -480,7 +477,6 @@
             audio.src = song.url;
             checkLikedStatus(song);
 
-            // 🔥 FIX: Restore hone par Up Next queue immediately load karna 🔥
             setTimeout(() => { fetchSmartQueue(song, false); }, 500);
         }
 
@@ -741,7 +737,13 @@
             } else { queueList.innerHTML = `<p class="text-xs text-on-surface-variant animate-pulse">Fetching more vibes...</p>`; }
         }
 
-        window.playFromUpNext = (index) => { const song = upNextQueue.splice(index, 1)[0]; currentQueue.splice(currentIndex + 1, 0, song); playNext(); }
+        // 🔥 FIX: UP NEXT QUEUE DOUBLE SKIP BUG 🔥
+        window.playFromUpNext = (index) => { 
+            const song = upNextQueue.splice(index, 1)[0]; 
+            currentQueue.splice(currentIndex + 1, 0, song); 
+            currentIndex++; 
+            loadAndPlay(null, currentIndex, true); 
+        }
 
         window.loadAndPlay = (queueContext, index, fromUser = false) => {
             if (queueContext && queues[queueContext]) currentQueue = [...queues[queueContext]]; 
@@ -766,7 +768,6 @@
 
             checkLikedStatus(song);
             
-            // Initialization of Notification
             if (window.MusicControls) setupMediaSession(song);
             
             if(fromUser) { localStorage.setItem('mid_last_artist', song.artist.split(',')[0]); setTimeout(() => { fetchSmartQueue(song, false); }, 500); } 
@@ -776,7 +777,20 @@
         };
 
         window.togglePlay = () => { if (!audio.src) return; isPlaying ? audio.pause() : audio.play(); }
-        window.playNext = () => { if(upNextQueue.length > 0) { currentQueue.splice(currentIndex + 1, 0, upNextQueue.shift()); currentIndex++; } else { currentIndex = (currentIndex + 1) % currentQueue.length; } loadAndPlay(null, currentIndex, false); }
+        
+        // 🔥 FIX: PLAY NEXT LOGIC SO IT DOESN'T SKIP WRONG SONGS 🔥
+        window.playNext = () => { 
+            if (currentIndex < currentQueue.length - 1) {
+                currentIndex++;
+            } else if(upNextQueue.length > 0) { 
+                currentQueue.push(upNextQueue.shift()); 
+                currentIndex++; 
+            } else { 
+                currentIndex = 0; 
+            } 
+            loadAndPlay(null, currentIndex, false); 
+        }
+        
         window.playPrevious = () => { currentIndex = (currentIndex - 1 + currentQueue.length) % currentQueue.length; loadAndPlay(null, currentIndex, false); }
 
         function updatePlayIcons() { 
@@ -801,7 +815,7 @@
 
         audio.addEventListener('loadedmetadata', () => { 
             document.getElementById('total-time').innerText = formatTime(audio.duration); 
-            if ('mediaSession' in navigator && !window.MusicControls) setupMediaSession(currentQueue[currentIndex]); // Web session
+            if ('mediaSession' in navigator && !window.MusicControls) setupMediaSession(currentQueue[currentIndex]);
             updateOSPlayerPosition(); 
         });
         
@@ -829,10 +843,9 @@
         function formatTime(s) { if(isNaN(s)) return "0:00"; let m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec < 10 ? '0'+sec : sec}`; }
 
         // ==========================================
-        // 🔥 PERFECT NATIVE & WEB MEDIA SESSION 🔥
+        // 🔥 NATIVE & WEB MEDIA SESSION 🔥
         // ==========================================
         function setupMediaSession(song) {
-            // Web PWA (Chrome)
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({ title: song.name, artist: song.artist, artwork: [{ src: song.img || fallbackImg, sizes: '500x500', type: 'image/jpeg' }] });
                 navigator.mediaSession.setActionHandler('play', togglePlay); navigator.mediaSession.setActionHandler('pause', togglePlay);
@@ -842,7 +855,6 @@
                 });
             }
 
-            // Asli Native Android App
             if (window.MusicControls) {
                 window.MusicControls.create({
                     track       : song.name,
