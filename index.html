@@ -306,9 +306,16 @@
                 </div>
 
                 <div class="flex items-center justify-between pb-8">
-                    <div onclick="toggleCanvas()" id="canvas-btn" class="flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant cursor-pointer transition">
-                        <span class="material-symbols-outlined text-[18px] text-tertiary">movie</span>
-                        <span class="text-[10px] font-bold tracking-widest uppercase">Canvas FX</span>
+                    <div class="flex gap-4 overflow-x-auto custom-scrollbar">
+                        <div onclick="toggleCanvas()" id="canvas-btn" class="flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant cursor-pointer transition shrink-0">
+                            <span class="material-symbols-outlined text-[18px] text-tertiary">movie</span>
+                            <span class="text-[10px] font-bold tracking-widest uppercase">Canvas FX</span>
+                        </div>
+                        
+                        <div onclick="toggleBass()" id="bass-btn" class="flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant cursor-pointer transition shrink-0">
+                            <span class="material-symbols-outlined text-[18px] text-on-surface-variant">speaker</span>
+                            <span class="text-[10px] font-bold tracking-widest uppercase">Bass Boost</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -326,7 +333,7 @@
         </div>
     </div>
 
-    <audio id="main-audio"></audio>
+    <audio id="main-audio" crossorigin="anonymous"></audio>
 
     <script>
         // ==========================================
@@ -370,6 +377,53 @@
         let currentFetchId = 0; 
         const fallbackImg = "logo.png";
         let tempBase64Dp = "";
+
+        // ==========================================
+        // 🔥 BASS BOOST SYSTEM (NEW) 🔥
+        // ==========================================
+        let audioCtx, bassFilter, sourceNode;
+        let isBassBoosted = false;
+
+        window.toggleBass = () => {
+            try {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                    sourceNode = audioCtx.createMediaElementSource(audio);
+                    
+                    bassFilter = audioCtx.createBiquadFilter();
+                    bassFilter.type = "lowshelf";
+                    bassFilter.frequency.value = 150; // Bass frequency target
+                    bassFilter.gain.value = 0;
+
+                    sourceNode.connect(bassFilter);
+                    bassFilter.connect(audioCtx.destination);
+                }
+
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                isBassBoosted = !isBassBoosted;
+                bassFilter.gain.value = isBassBoosted ? 15 : 0; // Add 15dB heavy bass punch
+
+                const btn = document.getElementById('bass-btn');
+                const icon = btn.querySelector('.material-symbols-outlined');
+                
+                if (isBassBoosted) {
+                    btn.classList.add('border-primary');
+                    icon.classList.add('text-primary');
+                    icon.classList.remove('text-on-surface-variant');
+                } else {
+                    btn.classList.remove('border-primary');
+                    icon.classList.remove('text-primary');
+                    icon.classList.add('text-on-surface-variant');
+                }
+            } catch (e) {
+                console.log("Bass Boost Error:", e);
+                // Note: If Saavn server occasionally blocks CORS, this will catch it silently.
+            }
+        };
 
         // ==========================================
         // AUTH & DATABASE LOGIC
@@ -426,7 +480,7 @@
             audio.src = song.url;
             checkLikedStatus(song);
 
-            // 🔥 FIX: Restore hone par Up Next queue load karna 🔥
+            // 🔥 FIX: Restore hone par Up Next queue immediately load karna 🔥
             setTimeout(() => { fetchSmartQueue(song, false); }, 500);
         }
 
@@ -734,18 +788,32 @@
         // ==========================================
         // 🔥 AUDIO TIME UPDATE & SEEKING 🔥
         // ==========================================
+        function updateOSPlayerPosition() {
+            if (!audio.duration || isNaN(audio.duration) || audio.duration === Infinity) return;
+            if ('mediaSession' in navigator) {
+                try {
+                    navigator.mediaSession.setPositionState({
+                        duration: audio.duration, playbackRate: audio.playbackRate || 1, position: audio.currentTime
+                    });
+                } catch (e) {}
+            }
+        }
+
         audio.addEventListener('loadedmetadata', () => { 
             document.getElementById('total-time').innerText = formatTime(audio.duration); 
             if ('mediaSession' in navigator && !window.MusicControls) setupMediaSession(currentQueue[currentIndex]); // Web session
+            updateOSPlayerPosition(); 
         });
+        
         audio.addEventListener('canplay', () => { document.getElementById('total-time').innerText = formatTime(audio.duration); });
-        audio.onplaying = () => { isPlaying = true; updatePlayIcons(); }; 
-        audio.onpause = () => { isPlaying = false; updatePlayIcons(); };
+        audio.onplaying = () => { isPlaying = true; updatePlayIcons(); updateOSPlayerPosition(); }; 
+        audio.onpause = () => { isPlaying = false; updatePlayIcons(); updateOSPlayerPosition(); };
         
         seekSlider.addEventListener('input', (e) => { isSeeking = true; fullProgress.style.width = `${e.target.value}%`; });
         seekSlider.addEventListener('change', (e) => { 
             if(audio.duration) audio.currentTime = (e.target.value / 100) * audio.duration; 
             isSeeking = false; 
+            updateOSPlayerPosition();
         });
         
         audio.addEventListener('timeupdate', () => {
@@ -769,6 +837,9 @@
                 navigator.mediaSession.metadata = new MediaMetadata({ title: song.name, artist: song.artist, artwork: [{ src: song.img || fallbackImg, sizes: '500x500', type: 'image/jpeg' }] });
                 navigator.mediaSession.setActionHandler('play', togglePlay); navigator.mediaSession.setActionHandler('pause', togglePlay);
                 navigator.mediaSession.setActionHandler('previoustrack', playPrevious); navigator.mediaSession.setActionHandler('nexttrack', playNext);
+                navigator.mediaSession.setActionHandler('seekto', (details) => {
+                    if (audio.duration) { audio.currentTime = details.seekTime; updateOSPlayerPosition(); }
+                });
             }
 
             // Asli Native Android App
