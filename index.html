@@ -368,8 +368,10 @@
         const playlistView = document.getElementById('playlist-view');
         const playlistList = document.getElementById('playlist-list');
         
+        // 🔥 UNIFIED QUEUE SYSTEM 🔥
         const queues = { trending: [], suggested: [], playlist: [], search: [], liked: [], history: [] };
-        let currentQueue = [], upNextQueue = [], currentIndex = 0;
+        let currentQueue = [], currentIndex = 0; 
+        
         let isPlaying = false, canvasOn = false, isSeeking = false;
         let searchTimeout;
         let currentFetchId = 0; 
@@ -377,7 +379,7 @@
         let tempBase64Dp = "";
 
         // ==========================================
-        // 🔥 BASS BOOST SYSTEM (FIXED) 🔥
+        // 🔥 BASS BOOST SYSTEM 🔥
         // ==========================================
         let audioCtx, bassFilter, sourceNode;
         let isBassBoosted = false;
@@ -391,7 +393,7 @@
                     
                     bassFilter = audioCtx.createBiquadFilter();
                     bassFilter.type = "lowshelf";
-                    bassFilter.frequency.value = 80; // Changed to 80Hz for deep, clean punch (not muddy)
+                    bassFilter.frequency.value = 80;
                     bassFilter.gain.value = 0;
 
                     sourceNode.connect(bassFilter);
@@ -403,7 +405,7 @@
                 }
 
                 isBassBoosted = !isBassBoosted;
-                bassFilter.gain.value = isBassBoosted ? 8 : 0; // Changed from 15 to 8 for clear, distortion-free bass
+                bassFilter.gain.value = isBassBoosted ? 8 : 0;
 
                 const btn = document.getElementById('bass-btn');
                 const icon = btn.querySelector('.material-symbols-outlined');
@@ -477,7 +479,7 @@
             audio.src = song.url;
             checkLikedStatus(song);
 
-            setTimeout(() => { fetchSmartQueue(song, false); }, 500);
+            setTimeout(() => { fetchSmartQueue(song); }, 500);
         }
 
         window.addEventListener('popstate', (e) => {
@@ -714,40 +716,116 @@
         }
         window.clearSearch = () => { document.getElementById('search-input').value = ''; handleLiveSearch(''); }
 
-        async function fetchSmartQueue(song, append = false) {
-            if(!append) queueList.innerHTML = `<p class="text-xs text-primary animate-pulse">Analyzing vibe...</p>`;
+        // 🔥 YOUTUBE MUSIC STYLE SMART VIBE FETCHING (PERFECT VIBE MATCH) 🔥
+        async function fetchSmartQueue(song) {
+            const btn = document.getElementById('load-more-btn');
+            if(btn) btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[18px]">sync</span> Fetching...`;
+            else queueList.innerHTML = `<p class="text-xs text-primary animate-pulse">Analyzing vibe...</p>`;
+
             let lang = (song.language && song.language !== 'unknown') ? song.language : currentCategory;
-            let query = song.artist.split(',')[0].trim() + " " + lang + " hits";
-            let songs = await fetchAPI(query, 30);
-            if (songs.length === 0) songs = await fetchAPI(`top ${lang} songs`, 20);
-            if (songs.length > 0) {
-                let newSongs = songs.filter(s => s.name.toLowerCase().trim() !== song.name.toLowerCase().trim());
-                if(append) { newSongs = newSongs.filter(ns => !upNextQueue.some(uq => uq.url === ns.url)); upNextQueue.push(...newSongs); } else { upNextQueue = newSongs; }
-                renderUpNextUI();
+            let artist = song.artist ? song.artist.split(',')[0].trim() : '';
+
+            // 1. "Radio" search brings the same artist AND other artists from the same era/vibe.
+            // 2. We ONLY move to generic hits/trending if the artist searches yield nothing.
+            let queriesToTry = [
+                `${artist} radio`,
+                `${artist} hits`,
+                `${artist} similar`,
+                `best of ${lang} classic`,
+                `top trending ${lang}`
+            ];
+
+            let newSongs = [];
+            for (let q of queriesToTry) {
+                // BUG FIX: Agar same vibe ke gane mil gaye hain, toh aage search karke list mix mat karo!
+                if (newSongs.length >= 15) break; 
+
+                let songs = await fetchAPI(q, 30);
+
+                let filtered = songs.filter(s => 
+                    s.name.toLowerCase().trim() !== song.name.toLowerCase().trim() && 
+                    !currentQueue.some(cq => cq.url === s.url) &&
+                    !newSongs.some(ns => ns.url === s.url)
+                );
+
+                if (filtered.length > 0) {
+                    filtered = filtered.sort(() => Math.random() - 0.5);
+                    newSongs.push(...filtered);
+                }
             }
+
+            if (newSongs.length > 0) {
+                currentQueue.push(...newSongs);
+            }
+            
+            renderUpNextUI(); 
         }
 
         function renderUpNextUI() {
-            if(upNextQueue.length > 0) {
-                queueList.innerHTML = upNextQueue.slice(0, 15).map((sq, i) => `
-                    <div onclick="playFromUpNext(${i})" class="flex items-center gap-3 p-2 rounded-xl cursor-pointer hover:bg-white/5 transition">
+            if(currentQueue.length > 0) {
+                let html = currentQueue.map((sq, i) => {
+                    let isPlaying = (i === currentIndex);
+                    let titleColor = isPlaying ? 'text-primary' : 'text-white';
+                    let bgClass = isPlaying ? 'bg-white/5 border border-primary/20' : 'hover:bg-white/5 border border-transparent';
+                    
+                    let opacityClass = i < currentIndex ? 'opacity-50' : 'opacity-100';
+                    
+                    return `
+                    <div id="queue-item-${i}" onclick="playFromUpNext(${i})" class="flex items-center gap-3 p-2 rounded-xl cursor-pointer transition ${bgClass} ${opacityClass}">
                         <img src="${sq.img}" onerror="this.onerror=null; this.src='${fallbackImg}'" class="w-12 h-12 rounded-lg object-cover shadow-md shrink-0"/>
-                        <div class="overflow-hidden"><h4 class="text-sm font-bold text-white truncate">${sq.name}</h4><p class="text-xs text-on-surface-variant truncate">${sq.artist}</p></div>
-                    </div>`).join('');
-            } else { queueList.innerHTML = `<p class="text-xs text-on-surface-variant animate-pulse">Fetching more vibes...</p>`; }
+                        <div class="overflow-hidden flex-1"><h4 class="text-sm font-bold ${titleColor} truncate">${sq.name}</h4><p class="text-xs text-on-surface-variant truncate">${sq.artist}</p></div>
+                        ${isPlaying ? '<span class="material-symbols-outlined text-primary text-[18px]">equalizer</span>' : ''}
+                    </div>`;
+                }).join('');
+                
+                html += `
+                    <button id="load-more-btn" onclick="loadMoreUpNext()" class="w-full py-3 mt-2 rounded-xl border border-white/5 bg-white/5 text-xs font-bold text-on-surface-variant hover:bg-white/10 hover:text-white transition flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">expand_more</span> Load More
+                    </button>
+                `;
+                queueList.innerHTML = html;
+            } else { 
+                queueList.innerHTML = `<p class="text-xs text-on-surface-variant animate-pulse">Fetching more vibes...</p>`; 
+            }
         }
 
-        // 🔥 FIX: UP NEXT QUEUE DOUBLE SKIP BUG 🔥
+        window.loadMoreUpNext = async () => {
+            let baseSong = currentQueue[currentIndex];
+            await fetchSmartQueue(baseSong); 
+        };
+
         window.playFromUpNext = (index) => { 
-            const song = upNextQueue.splice(index, 1)[0]; 
-            currentQueue.splice(currentIndex + 1, 0, song); 
-            currentIndex++; 
-            loadAndPlay(null, currentIndex, true); 
+            if (index === currentIndex) return; 
+            
+            let clickedSong = currentQueue.splice(index, 1)[0];
+            
+            if (index > currentIndex) {
+                currentQueue.splice(currentIndex + 1, 0, clickedSong);
+                currentIndex++;
+            } else {
+                currentIndex--;
+                currentQueue.splice(currentIndex + 1, 0, clickedSong);
+                currentIndex++;
+            }
+            
+            loadAndPlay(null, currentIndex, false); 
         }
 
         window.loadAndPlay = (queueContext, index, fromUser = false) => {
-            if (queueContext && queues[queueContext]) currentQueue = [...queues[queueContext]]; 
-            currentIndex = index; const song = currentQueue[currentIndex]; if(!song) return;
+            if (queueContext && queues[queueContext]) {
+                if (queueContext === 'trending' || queueContext === 'suggested' || queueContext === 'search') {
+                    currentQueue = [queues[queueContext][index]]; 
+                    currentIndex = 0; 
+                } else {
+                    currentQueue = [...queues[queueContext]];
+                    currentIndex = index;
+                }
+            } else if (queueContext === null) {
+                currentIndex = index;
+            }
+
+            const song = currentQueue[currentIndex]; 
+            if(!song) return;
 
             document.getElementById('seek-slider').value = 0; document.getElementById('full-progress').style.width = '0%';
             document.getElementById('mini-progress').style.width = '0%'; document.getElementById('curr-time').innerText = '0:00'; document.getElementById('total-time').innerText = '0:00';
@@ -767,31 +845,46 @@
             if (playPromise !== undefined) { playPromise.then(_ => { isPlaying = true; updatePlayIcons(); }).catch(e => { isPlaying = false; updatePlayIcons(); }); }
 
             checkLikedStatus(song);
-            
             if (window.MusicControls) setupMediaSession(song);
             
-            if(fromUser) { localStorage.setItem('mid_last_artist', song.artist.split(',')[0]); setTimeout(() => { fetchSmartQueue(song, false); }, 500); } 
-            else { renderUpNextUI(); if(upNextQueue.length < 5) setTimeout(() => { fetchSmartQueue(song, true); }, 500); }
+            renderUpNextUI();
+            
+            if(fromUser) { 
+                localStorage.setItem('mid_last_artist', song.artist.split(',')[0]); 
+                setTimeout(() => { fetchSmartQueue(song); }, 500); 
+            } 
+            else { 
+                if(currentQueue.length - currentIndex < 5) setTimeout(() => { fetchSmartQueue(song); }, 500); 
+            }
 
             if(canvasOn) document.getElementById('canvas-video').play();
         };
 
         window.togglePlay = () => { if (!audio.src) return; isPlaying ? audio.pause() : audio.play(); }
         
-        // 🔥 FIX: PLAY NEXT LOGIC SO IT DOESN'T SKIP WRONG SONGS 🔥
-        window.playNext = () => { 
+        window.playNext = async () => { 
             if (currentIndex < currentQueue.length - 1) {
                 currentIndex++;
-            } else if(upNextQueue.length > 0) { 
-                currentQueue.push(upNextQueue.shift()); 
-                currentIndex++; 
+                loadAndPlay(null, currentIndex, false); 
             } else { 
-                currentIndex = 0; 
+                let btn = document.getElementById('load-more-btn');
+                if(btn) btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[18px]">sync</span> Loading Next...`;
+                
+                await fetchSmartQueue(currentQueue[currentIndex]);
+                
+                if (currentIndex < currentQueue.length - 1) {
+                    currentIndex++;
+                } else {
+                    currentIndex = 0;
+                }
+                loadAndPlay(null, currentIndex, false); 
             } 
-            loadAndPlay(null, currentIndex, false); 
         }
         
-        window.playPrevious = () => { currentIndex = (currentIndex - 1 + currentQueue.length) % currentQueue.length; loadAndPlay(null, currentIndex, false); }
+        window.playPrevious = () => { 
+            currentIndex = (currentIndex - 1 + currentQueue.length) % currentQueue.length; 
+            loadAndPlay(null, currentIndex, false); 
+        }
 
         function updatePlayIcons() { 
             document.getElementById('mini-play-icon').innerText = isPlaying ? 'pause' : 'play_arrow'; 
