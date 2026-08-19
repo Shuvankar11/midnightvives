@@ -789,6 +789,7 @@ export default function App() {
           onToggleBassBoost={() => setBassBoostActive(!bassBoostActive)}
           onArtistClick={handleArtistClick}
           onViewAllArtists={() => navigateToTab('artists')}
+          selectedLanguage={selectedLanguage}
         />
       </div>
 

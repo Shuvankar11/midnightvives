@@ -2,53 +2,205 @@ import React, { useState } from 'react';
 import { 
   Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, 
   Heart, Bell, ChevronDown, Volume2, Volume1, VolumeX, 
-  Zap, Maximize2, Sparkles, Music
+  Zap, Maximize2, Sparkles, Music, Check, User
 } from 'lucide-react';
 
-const DEFAULT_TOP_ARTISTS = [
-  {
-    id: 'art-1',
-    rank: '01',
-    name: 'Sammy Simorangkir',
-    albums: '20 Albums',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'art-2',
-    rank: '02',
-    name: 'Rossa',
-    albums: '15 Albums',
-    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'art-3',
-    rank: '03',
-    name: 'Dewa 19',
-    albums: '10 Albums',
-    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'art-4',
-    rank: '04',
-    name: 'Juicy Luicy',
-    albums: '11 Albums',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'art-5',
-    rank: '05',
-    name: 'Arijit Singh',
-    albums: '45 Albums',
-    image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg'
-  },
-  {
-    id: 'art-6',
-    rank: '06',
-    name: 'Taylor Swift',
-    albums: '24 Albums',
-    image: 'https://c.saavncdn.com/artists/Taylor_Swift_003_20200226074119_500x500.jpg'
-  }
-];
+const REAL_ARTISTS_BY_LANG = {
+  hindi: [
+    {
+      id: 'art-arijit',
+      rank: '01',
+      name: 'Arijit Singh',
+      albums: '50+ Albums',
+      image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg'
+    },
+    {
+      id: 'art-shreya',
+      rank: '02',
+      name: 'Shreya Ghoshal',
+      albums: '40+ Albums',
+      image: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg'
+    },
+    {
+      id: 'art-pritam',
+      rank: '03',
+      name: 'Pritam',
+      albums: '60+ Albums',
+      image: 'https://c.saavncdn.com/artists/Pritam_Chakraborty-20170711073326_500x500.jpg'
+    },
+    {
+      id: 'art-atif',
+      rank: '04',
+      name: 'Atif Aslam',
+      albums: '35+ Albums',
+      image: 'https://c.saavncdn.com/artists/Atif_Aslam_004_20230623091702_500x500.jpg'
+    },
+    {
+      id: 'art-kk',
+      rank: '05',
+      name: 'KK',
+      albums: '45+ Albums',
+      image: 'https://c.saavncdn.com/artists/KK_002_20220601044439_500x500.jpg'
+    },
+    {
+      id: 'art-sonu',
+      rank: '06',
+      name: 'Sonu Nigam',
+      albums: '55+ Albums',
+      image: 'https://c.saavncdn.com/artists/Sonu_Nigam_003_20241118063907_500x500.jpg'
+    }
+  ],
+  english: [
+    {
+      id: 'art-taylor',
+      rank: '01',
+      name: 'Taylor Swift',
+      albums: '24 Albums',
+      image: 'https://c.saavncdn.com/artists/Taylor_Swift_003_20200226074119_500x500.jpg'
+    },
+    {
+      id: 'art-weeknd',
+      rank: '02',
+      name: 'The Weeknd',
+      albums: '18 Albums',
+      image: 'https://c.saavncdn.com/artists/The_Weeknd_005_20231020084424_500x500.jpg'
+    },
+    {
+      id: 'art-edsheeran',
+      rank: '03',
+      name: 'Ed Sheeran',
+      albums: '16 Albums',
+      image: 'https://c.saavncdn.com/artists/Ed_Sheeran_003_20200226074211_500x500.jpg'
+    },
+    {
+      id: 'art-billie',
+      rank: '04',
+      name: 'Billie Eilish',
+      albums: '12 Albums',
+      image: 'https://c.saavncdn.com/artists/Billie_Eilish_003_20200226074312_500x500.jpg'
+    }
+  ],
+  bengali: [
+    {
+      id: 'art-anupam',
+      rank: '01',
+      name: 'Anupam Roy',
+      albums: '25 Albums',
+      image: 'https://c.saavncdn.com/artists/Anupam_Roy_003_20241118064030_500x500.jpg'
+    },
+    {
+      id: 'art-arijit-b',
+      rank: '02',
+      name: 'Arijit Singh',
+      albums: '30 Albums',
+      image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg'
+    },
+    {
+      id: 'art-shreya-b',
+      rank: '03',
+      name: 'Shreya Ghoshal',
+      albums: '28 Albums',
+      image: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg'
+    },
+    {
+      id: 'art-nachiketa',
+      rank: '04',
+      name: 'Nachiketa',
+      albums: '22 Albums',
+      image: 'https://c.saavncdn.com/artists/Nachiketa_Chakraborty_002_20220601050012_500x500.jpg'
+    }
+  ],
+  tamil: [
+    {
+      id: 'art-anirudh',
+      rank: '01',
+      name: 'Anirudh Ravichander',
+      albums: '35 Albums',
+      image: 'https://c.saavncdn.com/artists/Anirudh_Ravichander_003_20241118063945_500x500.jpg'
+    },
+    {
+      id: 'art-arrahman',
+      rank: '02',
+      name: 'A. R. Rahman',
+      albums: '60 Albums',
+      image: 'https://c.saavncdn.com/artists/A_R_Rahman_004_20241118063836_500x500.jpg'
+    },
+    {
+      id: 'art-sidsriram',
+      rank: '03',
+      name: 'Sid Sriram',
+      albums: '30 Albums',
+      image: 'https://c.saavncdn.com/artists/Sid_Sriram_003_20241118063851_500x500.jpg'
+    },
+    {
+      id: 'art-yuvan',
+      rank: '04',
+      name: 'Yuvan Shankar Raja',
+      albums: '45 Albums',
+      image: 'https://c.saavncdn.com/artists/Yuvan_Shankar_Raja_003_20241118064000_500x500.jpg'
+    }
+  ],
+  telugu: [
+    {
+      id: 'art-dsp',
+      rank: '01',
+      name: 'Devi Sri Prasad',
+      albums: '40 Albums',
+      image: 'https://c.saavncdn.com/artists/Devi_Sri_Prasad_002_20220601044320_500x500.jpg'
+    },
+    {
+      id: 'art-thaman',
+      rank: '02',
+      name: 'Thaman S',
+      albums: '35 Albums',
+      image: 'https://c.saavncdn.com/artists/Thaman_S_003_20241118063920_500x500.jpg'
+    },
+    {
+      id: 'art-sidsriram-tel',
+      rank: '03',
+      name: 'Sid Sriram',
+      albums: '25 Albums',
+      image: 'https://c.saavncdn.com/artists/Sid_Sriram_003_20241118063851_500x500.jpg'
+    },
+    {
+      id: 'art-rahman-tel',
+      rank: '04',
+      name: 'A. R. Rahman',
+      albums: '50 Albums',
+      image: 'https://c.saavncdn.com/artists/A_R_Rahman_004_20241118063836_500x500.jpg'
+    }
+  ],
+  bhojpuri: [
+    {
+      id: 'art-khesari',
+      rank: '01',
+      name: 'Khesari Lal Yadav',
+      albums: '50 Albums',
+      image: 'https://c.saavncdn.com/artists/Khesari_Lal_Yadav_003_20241118064110_500x500.jpg'
+    },
+    {
+      id: 'art-pawan',
+      rank: '02',
+      name: 'Pawan Singh',
+      albums: '45 Albums',
+      image: 'https://c.saavncdn.com/artists/Pawan_Singh_003_20241118064125_500x500.jpg'
+    },
+    {
+      id: 'art-shilpi',
+      rank: '03',
+      name: 'Shilpi Raj',
+      albums: '35 Albums',
+      image: 'https://c.saavncdn.com/artists/Shilpi_Raj_003_20241118064140_500x500.jpg'
+    },
+    {
+      id: 'art-arvind',
+      rank: '04',
+      name: 'Arvind Akela Kallu',
+      albums: '30 Albums',
+      image: 'https://c.saavncdn.com/artists/Arvind_Akela_Kallu_002_20220601050210_500x500.jpg'
+    }
+  ]
+};
 
 export default function RightSidebar({
   currentTrack,
@@ -74,8 +226,18 @@ export default function RightSidebar({
   bassBoostActive,
   onToggleBassBoost,
   onArtistClick,
-  onViewAllArtists
+  onViewAllArtists,
+  selectedLanguage = 'hindi'
 }) {
+  const [userName, setUserName] = useState(() => {
+    try {
+      return localStorage.getItem('mv_user_name') || 'Shuvankar';
+    } catch {
+      return 'Shuvankar';
+    }
+  });
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(userName);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const formatTime = (seconds) => {
@@ -93,25 +255,54 @@ export default function RightSidebar({
     return <Volume2 size={15} />;
   };
 
+  const handleSaveName = (e) => {
+    e.preventDefault();
+    const clean = tempName.trim() || 'Shuvankar';
+    setUserName(clean);
+    localStorage.setItem('mv_user_name', clean);
+    setIsEditingName(false);
+  };
+
+  // Get real artists based on selected language
+  const topArtists = REAL_ARTISTS_BY_LANG[selectedLanguage] || REAL_ARTISTS_BY_LANG['hindi'];
+
   return (
     <aside className="right-sidebar-container" id="app-right-sidebar">
       {/* Top Section: User Profile & Notification */}
       <div className="right-sidebar-header">
-        <div className="user-profile-widget" onClick={() => setShowUserMenu(!showUserMenu)}>
-          <div className="user-avatar-wrapper">
-            <img 
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
-              alt="Oji Ganteng" 
-              className="user-avatar-img"
+        {isEditingName ? (
+          <form onSubmit={handleSaveName} className="user-name-edit-form">
+            <input 
+              type="text" 
+              value={tempName} 
+              onChange={(e) => setTempName(e.target.value)}
+              className="user-name-input"
+              maxLength={20}
+              autoFocus
             />
-            <span className="user-online-status"></span>
+            <button type="submit" className="interactive-btn save-name-btn">
+              <Check size={14} />
+            </button>
+          </form>
+        ) : (
+          <div 
+            className="user-profile-widget" 
+            onClick={() => setIsEditingName(true)}
+            title="Click to edit name"
+          >
+            <div className="user-avatar-wrapper">
+              <div className="user-avatar-initials font-display">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="user-online-status"></span>
+            </div>
+            <div className="user-info">
+              <span className="user-name font-display">{userName}</span>
+              <span className="user-badge">PRO Member</span>
+            </div>
+            <ChevronDown size={14} className="user-chevron" />
           </div>
-          <div className="user-info">
-            <span className="user-name font-display">Oji Ganteng</span>
-            <span className="user-badge">Member</span>
-          </div>
-          <ChevronDown size={14} className="user-chevron" />
-        </div>
+        )}
 
         <button 
           className="interactive-btn notification-btn"
@@ -139,11 +330,12 @@ export default function RightSidebar({
         </div>
 
         <div className="top-artists-list">
-          {DEFAULT_TOP_ARTISTS.slice(0, 4).map((artist) => (
+          {topArtists.slice(0, 4).map((artist) => (
             <div 
               key={artist.id} 
               className="artist-row-item"
               onClick={() => onArtistClick && onArtistClick(artist.name)}
+              title={`Play ${artist.name}`}
             >
               <div className="artist-avatar-container">
                 <img 

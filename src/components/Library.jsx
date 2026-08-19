@@ -6,16 +6,16 @@ import {
 } from 'lucide-react';
 
 const POPULAR_ARTISTS = [
-  { name: 'Sammy Simorangkir', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80', count: '20 Albums' },
-  { name: 'Rossa', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80', count: '15 Albums' },
-  { name: 'Dewa 19', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&auto=format&fit=crop&q=80', count: '10 Albums' },
-  { name: 'Juicy Luicy', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80', count: '11 Albums' },
-  { name: 'Arijit Singh', image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg', count: '45 Albums' },
-  { name: 'Shreya Ghoshal', image: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg', count: '38 Albums' },
-  { name: 'Pritam', image: 'https://c.saavncdn.com/artists/Pritam_Chakraborty-20170711073326_500x500.jpg', count: '50 Albums' },
-  { name: 'Atif Aslam', image: 'https://c.saavncdn.com/artists/Atif_Aslam_004_20230623091702_500x500.jpg', count: '25 Albums' },
-  { name: 'Taylor Swift', image: 'https://c.saavncdn.com/artists/Taylor_Swift_003_20200226074119_500x500.jpg', count: '24 Albums' },
-  { name: 'Diljit Dosanjh', image: 'https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg', count: '18 Albums' }
+  { name: 'Arijit Singh', image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg', count: '50+ Albums' },
+  { name: 'Shreya Ghoshal', image: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg', count: '40+ Albums' },
+  { name: 'Pritam', image: 'https://c.saavncdn.com/artists/Pritam_Chakraborty-20170711073326_500x500.jpg', count: '60+ Albums' },
+  { name: 'Atif Aslam', image: 'https://c.saavncdn.com/artists/Atif_Aslam_004_20230623091702_500x500.jpg', count: '35+ Albums' },
+  { name: 'KK', image: 'https://c.saavncdn.com/artists/KK_002_20220601044439_500x500.jpg', count: '45+ Albums' },
+  { name: 'Sonu Nigam', image: 'https://c.saavncdn.com/artists/Sonu_Nigam_003_20241118063907_500x500.jpg', count: '55+ Albums' },
+  { name: 'Taylor Swift', image: 'https://c.saavncdn.com/artists/Taylor_Swift_003_20200226074119_500x500.jpg', count: '24+ Albums' },
+  { name: 'Anirudh Ravichander', image: 'https://c.saavncdn.com/artists/Anirudh_Ravichander_003_20241118063945_500x500.jpg', count: '35+ Albums' },
+  { name: 'Diljit Dosanjh', image: 'https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg', count: '20+ Albums' },
+  { name: 'Badshah', image: 'https://c.saavncdn.com/artists/Badshah_006_20241118064015_500x500.jpg', count: '22+ Albums' }
 ];
 
 const RADIO_STATIONS = [
